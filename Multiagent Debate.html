@@ -1,0 +1,835 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Multiagent Debate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: TV debate studio. Dark masthead with LIVE bug and a yellow motion chyron, then a controls strip,
+   then a sticky roster of six faces beside the transcript, and a final-answer card that closes the show. */
+:root {
+  --bg: #E8ECF5;
+  --surface: #FFFFFF;
+  --ink: #111A36;
+  --muted: #56608A;
+  --line: #CBD3E6;
+  --stage: #0B1230;
+  --stage-ink: #F2F5FF;
+  --signal: #E5322D;
+  --chyron: #FFC933;
+  --chyron-ink: #1A1400;
+  --opt-a: #1F5FD6;
+  --opt-b: #CC4A10;
+  --c-prof: #2F5BEA;
+  --c-chaos: #E4451F;
+  --c-snack: #B86E00;
+  --c-doom: #0E8F7E;
+  --c-sunny: #D6338A;
+  --c-judge: #4B5575;
+  --font-display: "Bowlby One", "Arial Black", Impact, sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #080C1C;
+    --surface: #121A36;
+    --ink: #EEF2FF;
+    --muted: #9AA5CC;
+    --line: #26305C;
+    --stage: #04071A;
+    --signal: #FF5A52;
+    --opt-a: #6EA8FF;
+    --opt-b: #FF9A62;
+    --c-prof: #7C9BFF;
+    --c-chaos: #FF8460;
+    --c-snack: #FFB84A;
+    --c-doom: #4AD6C2;
+    --c-sunny: #FF7CC0;
+    --c-judge: #AEB7D6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #080C1C;
+  --surface: #121A36;
+  --ink: #EEF2FF;
+  --muted: #9AA5CC;
+  --line: #26305C;
+  --stage: #04071A;
+  --signal: #FF5A52;
+  --opt-a: #6EA8FF;
+  --opt-b: #FF9A62;
+  --c-prof: #7C9BFF;
+  --c-chaos: #FF8460;
+  --c-snack: #FFB84A;
+  --c-doom: #4AD6C2;
+  --c-sunny: #FF7CC0;
+  --c-judge: #AEB7D6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.5;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--chyron); outline-offset: 2px; }
+.wrap {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Masthead */
+.masthead { background: var(--stage); color: var(--stage-ink); }
+.masthead .wrap { padding-block: 22px 0; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.live {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--signal); color: #fff;
+  font: 700 12px/1 var(--font-mono); letter-spacing: .14em;
+  padding: 7px 10px; border-radius: 4px;
+}
+.live i { width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.stat { font: 500 12px/1.2 var(--font-mono); letter-spacing: .12em; text-transform: uppercase; color: #B9C3E8; }
+h1 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(2.1rem, 7vw, 4rem);
+  line-height: 1;
+  letter-spacing: -.01em;
+  margin: 18px 0 8px;
+  text-wrap: balance;
+}
+.dek { margin: 0 0 22px; max-width: 56ch; color: #C9D2F0; font-size: 17px; }
+.chyron { display: flex; flex-wrap: wrap; align-items: stretch; background: var(--chyron); color: var(--chyron-ink); }
+.chyron .tag {
+  background: var(--stage-ink); color: var(--stage);
+  font: 700 12px/1 var(--font-mono); letter-spacing: .16em;
+  padding: 14px 14px; display: flex; align-items: center;
+}
+.chyron .motion { flex: 1 1 260px; min-width: 0; padding: 12px 16px; font-weight: 700; font-size: clamp(1.05rem, 3.2vw, 1.4rem); line-height: 1.2; text-wrap: balance; }
+
+/* Controls */
+.controls { background: var(--surface); border-bottom: 1px solid var(--line); }
+.controls .wrap { padding-block: 18px; display: grid; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+.row .lab { font: 700 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.topic {
+  border: 2px solid var(--ink); background: transparent; border-radius: 999px;
+  padding: 8px 14px; font-weight: 600; transition: background .15s, color .15s;
+}
+.topic:hover { background: color-mix(in srgb, var(--chyron) 40%, transparent); }
+.topic[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+form.custom { display: flex; flex-wrap: wrap; gap: 8px; }
+form.custom input {
+  flex: 1 1 240px; min-width: 0; padding: 10px 14px;
+  border: 2px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+form.custom input:focus { border-color: var(--ink); }
+.go {
+  background: var(--chyron); color: var(--chyron-ink); border: 2px solid var(--chyron-ink);
+  border-radius: 10px; padding: 10px 18px; font-weight: 700;
+}
+.go:disabled, .tbtn:disabled { opacity: .45; cursor: not-allowed; }
+.tbtn {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px;
+  font: 600 13px/1.1 var(--font-mono); letter-spacing: .04em;
+}
+.tbtn:hover:not(:disabled) { border-color: var(--ink); }
+.note { margin: 0; color: var(--muted); font-size: 14px; min-height: 1.4em; }
+.note.err { color: color-mix(in srgb, var(--signal) 85%, var(--ink)); font-weight: 600; }
+
+/* Studio */
+main .wrap { padding-block: 24px 56px; display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 24px; align-items: start; }
+.roster { position: sticky; top: 16px; display: grid; gap: 8px; }
+.roster h2, .verdict h2 { margin: 0; }
+.agent {
+  display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center;
+  padding: 8px 10px; border-radius: 12px; border: 2px solid transparent; background: var(--surface);
+  transition: border-color .15s, background .15s;
+}
+.agent .nm { font-weight: 700; font-size: 14px; line-height: 1.2; }
+.agent .tg { font: 500 11px/1.3 var(--font-mono); color: var(--muted); letter-spacing: .02em; }
+.agent.speaking { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--surface)); }
+.agent.speaking .face { animation: hop .5s ease-in-out infinite alternate; }
+@keyframes hop { to { transform: translateY(-3px) rotate(-3deg); } }
+.face svg { display: block; width: 100%; height: auto; }
+.pill {
+  font: 700 11px/1 var(--font-mono); padding: 5px 7px; border-radius: 6px;
+  background: var(--opt-a); color: #fff; display: none;
+}
+.pill.b { background: var(--opt-b); color: #fff; }
+.pill.on { display: inline-block; }
+:root[data-theme="dark"] .pill { color: #0A0F20; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill { color: #0A0F20; } }
+
+.a-prof { --c: var(--c-prof); } .a-chaos { --c: var(--c-chaos); } .a-snack { --c: var(--c-snack); }
+.a-doom { --c: var(--c-doom); } .a-sunny { --c: var(--c-sunny); } .a-judge { --c: var(--c-judge); }
+
+.feed { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.round {
+  display: flex; align-items: center; gap: 12px; margin-top: 10px;
+  font: 700 12px/1.2 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.round::before, .round::after { content: ""; height: 2px; background: var(--line); flex: 1; }
+.round span { max-width: 70%; text-align: center; }
+.msg { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; align-items: start; animation: rise .25s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+.msg .face { width: 44px; }
+.bubble {
+  min-width: 0;
+  background: color-mix(in srgb, var(--c) 11%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--c) 32%, var(--line));
+  border-radius: 4px 16px 16px 16px; padding: 10px 14px 12px;
+}
+.who { font: 700 11px/1.2 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 72%, var(--ink)); margin-bottom: 3px; }
+.txt { margin: 0; overflow-wrap: anywhere; }
+.vote {
+  display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 6px;
+  background: var(--chyron); color: var(--chyron-ink); font: 700 12px/1.3 var(--font-mono); letter-spacing: .03em;
+}
+.stagedir { text-align: center; color: var(--muted); font-style: italic; font-size: 14.5px; padding-inline: 8px; animation: rise .25s ease-out; }
+.dots { display: inline-flex; gap: 5px; padding: 6px 2px 2px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); opacity: .5; animation: bob 1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes bob { 50% { transform: translateY(-4px); opacity: 1; } }
+.loading {
+  border: 2px dashed var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; justify-items: start;
+}
+.loading p { margin: 0; font-weight: 600; }
+
+/* Verdict */
+.verdict { border: 2px solid var(--ink); border-radius: 18px; background: var(--surface); overflow: hidden; margin-top: 10px; animation: rise .35s ease-out; }
+.verdict header { background: var(--chyron); color: var(--chyron-ink); padding: 12px 18px; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.verdict header h2 { font: 400 clamp(1.2rem, 4vw, 1.7rem)/1.1 var(--font-display); }
+.verdict header .q { font-weight: 700; min-width: 0; }
+.vbody { padding: 18px; display: grid; gap: 18px; }
+.opts { display: grid; gap: 10px; }
+.opt { display: grid; gap: 4px; }
+.opt .top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; font-weight: 600; }
+.opt .top span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.opt .count { font-family: var(--font-mono); font-weight: 700; }
+.track { height: 16px; background: var(--bg); border-radius: 999px; overflow: hidden; border: 1px solid var(--line); }
+.fill { height: 100%; border-radius: 999px; background: var(--opt-a); }
+.opt.b .fill { background: var(--opt-b); }
+.win { font: 700 11px/1 var(--font-mono); letter-spacing: .12em; background: var(--ink); color: var(--bg); padding: 3px 6px; border-radius: 4px; margin-left: 6px; }
+.voters { display: flex; flex-wrap: wrap; gap: 8px; }
+.voter { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; background: var(--bg); border-radius: 999px; padding: 3px 12px 3px 3px; }
+.voter .face { width: 26px; }
+.judgebox { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 14px; align-items: start; }
+.judgebox .face { width: 56px; }
+.answer { margin: 0; font-size: clamp(1.05rem, 2.6vw, 1.25rem); line-height: 1.45; font-weight: 600; text-wrap: pretty; }
+.aside { margin: 8px 0 0; color: var(--muted); font-style: italic; }
+.again { justify-self: start; }
+
+@media (max-width: 760px) {
+  main .wrap { grid-template-columns: minmax(0, 1fr); gap: 16px; padding-block: 16px 48px; }
+  .roster { position: static; display: flex; overflow-x: auto; gap: 8px; padding-bottom: 6px; scrollbar-width: thin; }
+  .roster .agent { grid-template-columns: 40px auto; min-width: 150px; flex: 0 0 auto; }
+  .roster .agent .tg { display: none; }
+  .roster .agent .pill { grid-column: 2; justify-self: start; }
+  .roster .agent .pill.on { margin-top: -4px; }
+  .judgebox { grid-template-columns: 44px minmax(0, 1fr); }
+  .judgebox .face { width: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="bar">
+      <span class="live"><i></i>LIVE</span>
+      <span class="stat" id="roundStat">Studio ready</span>
+    </div>
+    <h1>Multiagent Debate</h1>
+    <p class="dek">Five agents with strong opinions and weak boundaries argue a question in three rounds. Then they vote, and a tired judge announces one final answer.</p>
+  </div>
+  <div class="wrap">
+    <div class="chyron" role="status" aria-live="polite">
+      <div class="tag">MOTION</div>
+      <div class="motion" id="motion"></div>
+    </div>
+  </div>
+</header>
+
+<section class="controls" aria-label="Choose a topic">
+  <div class="wrap">
+    <div class="row" role="group" aria-label="Preset topics" id="chips"><span class="lab">Topic</span></div>
+    <form class="custom" id="customForm" autocomplete="off">
+      <label class="sr" for="customTopic">Your own topic</label>
+      <input id="customTopic" type="text" maxlength="120" placeholder="Or ask your own, like: Is cereal soup?">
+      <button class="go" id="goBtn" type="submit">Start debate</button>
+    </form>
+    <div class="row">
+      <span class="lab">Stage</span>
+      <button class="tbtn" id="replayBtn" type="button">Replay</button>
+      <button class="tbtn" id="pauseBtn" type="button" disabled>Pause</button>
+      <button class="tbtn" id="skipBtn" type="button" disabled>Skip to verdict</button>
+      <button class="tbtn" id="speedBtn" type="button" aria-label="Playback speed">Speed 1x</button>
+    </div>
+    <p class="note" id="note">The three preset debates are scripted. Your own topic is written live by Gemini.</p>
+  </div>
+</section>
+
+<main>
+  <div class="wrap">
+    <aside class="roster" id="roster" aria-label="Debaters"></aside>
+    <section class="feed" id="feed" aria-live="off" aria-label="Debate transcript"></section>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Cast ---------- */
+  var AG = {
+    prof:  { name: "Professor Pedantic", tag: "Well, actually" },
+    chaos: { name: "Captain Chaos",      tag: "Opposes by default" },
+    snack: { name: "Sir Snacksalot",     tag: "Always hungry" },
+    doom:  { name: "Dr. Doomscroll",     tag: "Trusts nothing" },
+    sunny: { name: "Sunny Bright",       tag: "Hugs everything" },
+    judge: { name: "Judge Gavel-9000",   tag: "Tired moderator" }
+  };
+  var ORDER = ["prof", "chaos", "snack", "doom", "sunny", "judge"];
+
+  var HEAD = '<ellipse cx="32" cy="37" rx="17" ry="18" fill="#FFE0BD"/>';
+  var FEATURES = {
+    prof:
+      '<path d="M15 33c0-12 8-19 17-19s17 7 17 19c-3-6-9-9-17-9s-14 3-17 9z" fill="#D5DAE8"/>' + HEAD +
+      '<path d="M15 33c0-12 8-19 17-19s17 7 17 19c-3-6-9-9-17-9s-14 3-17 9z" fill="#D5DAE8"/>' +
+      '<circle cx="25" cy="37" r="5.5" fill="#fff" stroke="#1B2340" stroke-width="2"/><circle cx="39" cy="37" r="5.5" fill="#fff" stroke="#1B2340" stroke-width="2"/>' +
+      '<path d="M30.5 37h3" stroke="#1B2340" stroke-width="2"/><circle cx="25" cy="37" r="1.8" fill="#1B2340"/><circle cx="39" cy="37" r="1.8" fill="#1B2340"/>' +
+      '<path d="M27 47q5 3 10 0" stroke="#1B2340" fill="none" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M32 59l-6-3.5v7zM32 59l6-3.5v7z" fill="#1B2340"/>',
+    chaos:
+      HEAD +
+      '<path d="M14 32l4-15 6 8 5-13 5 13 6-8 4 15c-5-4-10-6-18-6s-13 2-16 6z" fill="#2B1A12"/>' +
+      '<path d="M20 31l9 4M44 31l-9 4" stroke="#2B1A12" stroke-width="3" stroke-linecap="round"/>' +
+      '<circle cx="25" cy="38" r="2.6" fill="#2B1A12"/><circle cx="39" cy="38" r="2.6" fill="#2B1A12"/>' +
+      '<ellipse cx="32" cy="49" rx="6.5" ry="5.5" fill="#7A1010"/><ellipse cx="32" cy="51.5" rx="3.6" ry="2.2" fill="#FF8A8A"/>',
+    snack:
+      HEAD +
+      '<path d="M20 26c-6-1-7-10-1-12 2-6 10-7 13-2 3-5 11-4 13 2 6 2 5 11-1 12z" fill="#fff" stroke="#C9CFE0"/>' +
+      '<rect x="20" y="25" width="24" height="5" rx="1" fill="#E3E7F3"/>' +
+      '<path d="M21 39q4-4 8 0M35 39q4-4 8 0" stroke="#3A2415" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
+      '<path d="M24 45q8 12 16 0z" fill="#7A1010"/><path d="M28 50q4 3 8 0" stroke="#FF8A8A" stroke-width="2.4" fill="none"/>' +
+      '<path d="M40 52q2 4 0 7" stroke="#7FC3FF" stroke-width="2.4" fill="none" stroke-linecap="round"/>',
+    doom:
+      HEAD +
+      '<path d="M32 3l13 24H19z" fill="#D3DAE4" stroke="#8B96A6" stroke-width="1.5"/><path d="M26 17l6 6 7-8M23 24l9-3" stroke="#8B96A6" fill="none"/>' +
+      '<circle cx="25" cy="38" r="5.2" fill="#fff"/><circle cx="39" cy="38" r="5.2" fill="#fff"/>' +
+      '<circle cx="25.8" cy="38.4" r="1.8" fill="#1B2340"/><circle cx="38.2" cy="38.4" r="1.8" fill="#1B2340"/>' +
+      '<path d="M20 44q5 2.5 10 0M34 44q5 2.5 10 0" stroke="#7B6A8A" stroke-width="2" fill="none" stroke-linecap="round"/>' +
+      '<path d="M25 50q3-2 6 0t6 0" stroke="#1B2340" stroke-width="2" fill="none" stroke-linecap="round"/>',
+    sunny:
+      HEAD +
+      '<path d="M20 25l2-12 5 8 5-11 5 11 5-8 2 12z" fill="#FFD23F" stroke="#E0A800"/>' +
+      '<path d="M21 39q4-4.5 8 0M35 39q4-4.5 8 0" stroke="#3A2415" stroke-width="2.4" fill="none" stroke-linecap="round"/>' +
+      '<circle cx="20.5" cy="44" r="3.2" fill="#FF8FB1" opacity=".75"/><circle cx="43.5" cy="44" r="3.2" fill="#FF8FB1" opacity=".75"/>' +
+      '<path d="M23 45q9 11 18 0z" fill="#fff" stroke="#7A1010" stroke-width="2" stroke-linejoin="round"/>',
+    judge:
+      '<g fill="#F4F6FB" stroke="#B8C0D6" stroke-width="1.5"><circle cx="15" cy="34" r="7.5"/><circle cx="13.5" cy="45" r="6.5"/><circle cx="49" cy="34" r="7.5"/><circle cx="50.5" cy="45" r="6.5"/></g>' +
+      HEAD +
+      '<g fill="#F4F6FB" stroke="#B8C0D6" stroke-width="1.5"><circle cx="22" cy="21" r="8"/><circle cx="42" cy="21" r="8"/><circle cx="32" cy="17" r="8.5"/></g>' +
+      '<path d="M20 38h9M35 38h9" stroke="#1B2340" stroke-width="2.6" stroke-linecap="round"/><circle cx="25" cy="40.5" r="1.5" fill="#1B2340"/><circle cx="39" cy="40.5" r="1.5" fill="#1B2340"/>' +
+      '<path d="M20 33l9 1.5M44 33l-9 1.5" stroke="#6B5B4B" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="M27 49h10" stroke="#1B2340" stroke-width="2.2" stroke-linecap="round"/>'
+  };
+  function faceSvg(id) {
+    return '<svg viewBox="0 0 64 64" role="img" aria-label="' + AG[id].name + '"><circle cx="32" cy="32" r="32" style="fill:var(--c)"/>' + FEATURES[id] + '</svg>';
+  }
+
+  /* ---------- Preset debates ---------- */
+  function R(title, lines) {
+    return {
+      title: title,
+      lines: lines.map(function (l) {
+        if (l[0] === "s") return { s: l[1] };
+        var o = { a: l[0], t: l[1] };
+        if (typeof l[2] === "number") o.v = l[2];
+        return o;
+      })
+    };
+  }
+
+  var PRESETS = [
+    {
+      id: "pizza", chip: "Pineapple on pizza?",
+      question: "Does pineapple belong on pizza?",
+      options: ["Yes, put pineapple on it", "No, keep fruit off pizza"],
+      rounds: [
+        R("Opening statements", [
+          ["judge", "Order! Welcome to the Multiagent Debate. Tonight's motion: pineapple belongs on pizza. Keep it civil, keep it short, and keep your hands off my snacks."],
+          ["sunny", "Friends! Pineapple is sunshine you can eat. Pizza is a warm hug. Together they are a warm hug in a Hawaiian shirt, and I would like to hug both."],
+          ["prof", "Well, actually, sweet-and-salty pairings have a long culinary history: prosciutto and melon, for one. I prepared 41 slides. Slide one is a slide about the slides."],
+          ["snack", "I haven't eaten in eleven minutes and I have strong opinions. Pineapple is a tiny juice grenade on a cheese raft. I'm in. Can I have the raft?"],
+          ["doom", "Who benefits when fruit lands on bread? Big Pineapple. I saw their spreadsheet. It was blank, which is exactly what they want you to think."],
+          ["chaos", "I OPPOSE! I don't know what we're voting on, but I oppose it with my whole chest. Also: reverse pizza. Pineapple on the bottom. Wake up!"]
+        ]),
+        R("Rebuttals", [
+          ["prof", "Captain, 'reverse pizza' is just a pineapple with extra steps. Also the cheese would slide off. Gravity has not been consulted."],
+          ["chaos", "GRAVITY IS A TOPPING, PROFESSOR."],
+          ["sunny", "Let's all take a deep breath and enjoy one nice, warm pineapple ring."],
+          ["doom", "Breathe in. That smell is canned fruit syrup. Canned. Think about the can."],
+          ["snack", "I thought about the can. Then I ate what was in the can. No notes."],
+          ["judge", "The can is not on trial, Doctor."],
+          ["doom", "Everything is on trial, Your Honor. Especially the can."],
+          ["s", "The audience gasps. Someone drops a pretzel. Sir Snacksalot stares at it for a long time."],
+          ["prof", "In a survey of my relatives, 12 percent said they hate ham and pineapple. I made that number up, but I did it carefully."],
+          ["sunny", "Ham and pineapple is basically a tiny vacation. You can't be mad at a vacation!"]
+        ]),
+        R("Cross-fire", [
+          ["chaos", "Question for Sunny: if pineapple is sunshine, why is it spiky? ANSWER ME, SUNSHINE."],
+          ["sunny", "Because it's protecting its sweet heart. Like me, with my feelings."],
+          ["snack", "Aww."],
+          ["doom", "'Aww' is how they get you."],
+          ["prof", "I'd like to enter a formal objection. I'll have the wording ready in ten minutes."],
+          ["judge", "Overruled in advance. Saves everyone time."],
+          ["snack", "Compromise: pineapple on half the pizza. Then I eat both halves. Everyone wins. Mostly me."],
+          ["chaos", "A FENCE ON A PIZZA?! Pizza is a free-for-all of toppings, you coward!"]
+        ]),
+        R("Final votes", [
+          ["sunny", "YES. Pineapple, forever, with a hug.", 0],
+          ["prof", "Yes, with caveats and an appendix. The appendix is longer than the argument.", 0],
+          ["snack", "Yes. Also the box. I'll eat the box.", 0],
+          ["doom", "No. I don't trust anything that comes in rings.", 1],
+          ["chaos", "NO! Unless everyone else says no, then I'm voting yes. Wait, they said yes. NO!", 1]
+        ])
+      ],
+      final: {
+        answer: "Yes, 3 to 2. Pineapple works because sweet and salty is a classic pairing. Keep it to half the pizza or less, add something salty like ham or bacon, and drain the fruit well so the crust doesn't go soggy.",
+        note: "Dr. Doomscroll's dissent is recorded in a notebook nobody will read."
+      }
+    },
+    {
+      id: "tabs", chip: "Tabs or spaces?",
+      question: "Tabs or spaces?",
+      options: ["Tabs", "Spaces"],
+      rounds: [
+        R("Opening statements", [
+          ["judge", "Order! The motion: tabs beat spaces. Previous debates on this topic have ended friendships, so I have brought a mop."],
+          ["prof", "Tabs are one character, they carry meaning, and each reader picks their own indent width. Spaces are many characters pretending to be one. The Pinocchio of whitespace."],
+          ["chaos", "SPACES! Because I count them by hand and it makes me feel alive. Four. Then two. Then seven. Then a tab, to keep them guessing."],
+          ["snack", "I only care which one is more filling. A tab is one big snack. Spaces are a bowl of small snacks. I want the bowl."],
+          ["doom", "Mixed indentation is how production goes down at 3 a.m. Pick one. The linter will find the other one anyway."],
+          ["sunny", "Both are lovely! Whitespace is just the page breathing. Inhale tab, exhale space."]
+        ]),
+        R("Rebuttals", [
+          ["prof", "Captain, 'seven spaces' is not a style. It's a cry for help with a diff attached."],
+          ["chaos", "MY DIFF IS ART."],
+          ["doom", "Your diff is 4,000 lines. Every line changed because of art."],
+          ["snack", "I once indented a whole file with croutons. It didn't compile, but it was delicious."],
+          ["judge", "Croutons are not whitespace."],
+          ["snack", "They are if you're hungry enough."],
+          ["s", "A single tear rolls down a linter's cheek."],
+          ["sunny", "What if the editor converted everything automatically? Then everyone is right!"],
+          ["doom", "Then everyone fights over the config file. It's turtles all the way down."]
+        ]),
+        R("Cross-fire", [
+          ["prof", "Spaces people: how many keystrokes to indent four levels? I'll wait."],
+          ["chaos", "I HOLD DOWN THE SPACE BAR LIKE A PIANIST."],
+          ["doom", "Format on save. Next question."],
+          ["sunny", "Format on save is a gift. It's a tiny helper for your code, and it never complains."],
+          ["snack", "Format on snack."],
+          ["judge", "Not a feature."],
+          ["snack", "It will be, after the next sprint."]
+        ]),
+        R("Final votes", [
+          ["prof", "Tabs. Accessible, semantic, correct. I've attached a footnote.", 0],
+          ["sunny", "Tabs! Fewer keystrokes means more time for hugs.", 0],
+          ["chaos", "SPACES! Unless a tab sneaks in. Then I'll yell.", 1],
+          ["snack", "Spaces. More pieces, more snacks.", 1],
+          ["doom", "Spaces. Same look everywhere, and the formatter keeps everyone honest.", 1]
+        ])
+      ],
+      final: {
+        answer: "Spaces win, 3 to 2, but the real winner is the auto-formatter. Pick one rule for the whole project, put it in the editor config, run the formatter on save, and stop arguing about it in code review. Consistency matters more than the choice.",
+        note: "Professor Pedantic asks that the record show tabs were technically right."
+      }
+    },
+    {
+      id: "hotdog", chip: "Is a hot dog a sandwich?",
+      question: "Is a hot dog a sandwich?",
+      options: ["Yes, it's a sandwich", "No, it's its own thing"],
+      rounds: [
+        R("Opening statements", [
+          ["judge", "Order! The motion: a hot dog is a sandwich. This question has ruined three picnics and one wedding. Tread carefully."],
+          ["prof", "A sandwich is filling inside bread. A hot dog is filling inside bread. The hinge on the bun is not a philosophical category."],
+          ["chaos", "NO! A sandwich has TWO slices! A hot dog is a boat. A boat taco. A TACOBOAT! I will not be taking questions."],
+          ["snack", "I don't care what you call it. Call it Gerald. I'll eat Gerald."],
+          ["doom", "Define 'sandwich'. Define 'is'. Define 'hot'. Everything you know was told to you by a deli."],
+          ["sunny", "A sandwich is anything that hugs its filling. A hot dog gets hugged. Be kind to the hot dog!"]
+        ]),
+        R("Rebuttals", [
+          ["prof", "Captain, a 'boat taco' is not recognized by any food authority. I asked three."],
+          ["chaos", "THE AUTHORITIES ARE IN ON IT."],
+          ["doom", "He's right about that. Never trust a food authority."],
+          ["sunny", "I trust any authority that hands out free samples."],
+          ["snack", "Gerald says hi."],
+          ["judge", "Gerald is not a witness."],
+          ["snack", "Gerald saw everything."],
+          ["prof", "If a hot dog isn't a sandwich, then a sub isn't either. Does anyone want to be the one to tell the sub?"],
+          ["s", "The audience gasps. Somewhere, a sub sandwich quietly leaves the building."]
+        ]),
+        R("Cross-fire", [
+          ["sunny", "Is a taco a sandwich?"],
+          ["chaos", "NO. A taco is a HAT for meat."],
+          ["doom", "A hat that eats you."],
+          ["snack", "I love that hat."],
+          ["prof", "By the Captain's logic, my tuxedo is a sandwich."],
+          ["chaos", "YOUR TUXEDO IS A SANDWICH. YOU'RE THE FILLING."],
+          ["judge", "That is an argument. Moving on."]
+        ]),
+        R("Final votes", [
+          ["prof", "Yes. Filling, bread, hinge. Case closed, appendix attached.", 0],
+          ["sunny", "Yes! Everything is a sandwich if you love it enough.", 0],
+          ["snack", "Yes. Gerald is a sandwich. Gerald is also dinner.", 0],
+          ["chaos", "NO! TACOBOAT! TACOBOAT!", 1],
+          ["doom", "No. Nothing is anything. Next question.", 1]
+        ])
+      ],
+      final: {
+        answer: "Yes, 3 to 2, with an asterisk. By the dictionary-style definition (filling in or between bread), a hot dog counts as a sandwich. In everyday speech almost nobody calls it one, so if you want peace at the picnic, say 'hot dog' and keep the philosophy at home.",
+        note: "Gerald has been released without charges."
+      }
+    }
+  ];
+
+  /* ---------- DOM ---------- */
+  var $ = function (id) { return document.getElementById(id); };
+  var feed = $("feed"), roster = $("roster"), motionEl = $("motion"), roundStat = $("roundStat");
+  var chips = $("chips"), noteEl = $("note"), goBtn = $("goBtn"), form = $("customForm"), input = $("customTopic");
+  var replayBtn = $("replayBtn"), pauseBtn = $("pauseBtn"), skipBtn = $("skipBtn"), speedBtn = $("speedBtn");
+
+  var script = null, runId = 0, paused = false, skip = false, speed = 1, playing = false, follow = true;
+  var ctl = null, loadingEl = null;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function setNote(msg, isErr) { noteEl.textContent = msg; noteEl.className = "note" + (isErr ? " err" : ""); }
+
+  /* ---------- Roster and chips ---------- */
+  function buildRoster() {
+    roster.innerHTML = "";
+    ORDER.forEach(function (id) {
+      var d = document.createElement("div");
+      d.className = "agent a-" + id;
+      d.dataset.id = id;
+      d.innerHTML = '<div class="face">' + faceSvg(id) + '</div><div><div class="nm">' + esc(AG[id].name) + '</div><div class="tg">' + esc(AG[id].tag) + '</div></div><span class="pill" aria-hidden="true"></span>';
+      roster.appendChild(d);
+    });
+  }
+  function setSpeaking(id) {
+    roster.querySelectorAll(".agent").forEach(function (el) { el.classList.toggle("speaking", el.dataset.id === id); });
+  }
+  function setPill(id, v) {
+    var p = roster.querySelector('.agent[data-id="' + id + '"] .pill');
+    if (!p) return;
+    p.textContent = v === 0 ? "A" : "B";
+    p.className = "pill on" + (v === 1 ? " b" : "");
+  }
+  function clearPills() { roster.querySelectorAll(".pill").forEach(function (p) { p.className = "pill"; p.textContent = ""; }); }
+
+  function buildChips() {
+    PRESETS.forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "topic"; b.textContent = p.chip; b.dataset.id = p.id;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", function () { cancelCustom(); setScript(p); startPlay(true); });
+      chips.appendChild(b);
+    });
+  }
+  function markChip(id) {
+    chips.querySelectorAll(".topic").forEach(function (b) { b.setAttribute("aria-pressed", b.dataset.id === id ? "true" : "false"); });
+  }
+
+  /* ---------- Transcript pieces ---------- */
+  function scrollTo(el) {
+    if (!playing || !follow) return;
+    var r = el.getBoundingClientRect();
+    if (r.bottom > window.innerHeight - 24) window.scrollBy({ top: r.bottom - window.innerHeight + 90, behavior: reduce ? "auto" : "smooth" });
+  }
+  function addRound(title, i, n) {
+    var d = document.createElement("div");
+    d.className = "round";
+    d.innerHTML = "<span>Round " + (i + 1) + " of " + n + " · " + esc(title) + "</span>";
+    feed.appendChild(d);
+    roundStat.textContent = "Round " + (i + 1) + " of " + n + " · " + title;
+    return d;
+  }
+  function addTyping(id) {
+    var d = document.createElement("div");
+    d.className = "msg a-" + id;
+    d.innerHTML = '<div class="face">' + faceSvg(id) + '</div><div class="bubble"><div class="who">' + esc(AG[id].name) + '</div><span class="dots"><i></i><i></i><i></i></span></div>';
+    feed.appendChild(d);
+    return d;
+  }
+  function addMsg(id, text, full) {
+    var d = document.createElement("div");
+    d.className = "msg a-" + id;
+    d.innerHTML = '<div class="face">' + faceSvg(id) + '</div><div class="bubble"><div class="who">' + esc(AG[id].name) + '</div><p class="txt"></p></div>';
+    var t = d.querySelector(".txt");
+    if (full) t.textContent = text;
+    feed.appendChild(d);
+    return { row: d, txt: t, bubble: d.querySelector(".bubble") };
+  }
+  function addVoteChip(bubble, v) {
+    var s = document.createElement("span");
+    s.className = "vote";
+    s.textContent = "Votes: " + (script.options[v] || "?");
+    bubble.appendChild(s);
+  }
+  function addStage(text) {
+    var d = document.createElement("div");
+    d.className = "stagedir";
+    d.textContent = "(" + text + ")";
+    feed.appendChild(d);
+    return d;
+  }
+
+  function addVerdict() {
+    var opts = script.options, votes = [0, 0], voters = [];
+    script.rounds.forEach(function (r) {
+      r.lines.forEach(function (l) {
+        if (typeof l.v === "number" && (l.v === 0 || l.v === 1)) { votes[l.v]++; voters.push(l); }
+      });
+    });
+    var total = votes[0] + votes[1] || 1;
+    var win = votes[0] === votes[1] ? -1 : (votes[0] > votes[1] ? 0 : 1);
+    var d = document.createElement("section");
+    d.className = "verdict";
+    d.setAttribute("aria-label", "Final answer");
+    var html = '<header><h2>FINAL ANSWER</h2><span class="q">' + esc(script.question) + '</span></header><div class="vbody"><div class="opts">';
+    [0, 1].forEach(function (i) {
+      html += '<div class="opt ' + (i ? "b" : "a") + '"><div class="top"><span>' + (i ? "B" : "A") + " · " + esc(opts[i]) + (win === i ? '<span class="win">WINS</span>' : "") + '</span><span class="count">' + votes[i] + ' vote' + (votes[i] === 1 ? "" : "s") + '</span></div><div class="track"><div class="fill" style="width:' + Math.round(votes[i] / total * 100) + '%"></div></div></div>';
+    });
+    html += '</div><div class="voters">';
+    voters.forEach(function (l) {
+      html += '<span class="voter a-' + l.a + '"><span class="face">' + faceSvg(l.a) + '</span>' + esc(AG[l.a].name.split(" ")[0] + " " + AG[l.a].name.split(" ")[1].charAt(0) + ".") + " → " + (l.v ? "B" : "A") + '</span>';
+    });
+    html += '</div><div class="judgebox a-judge"><div class="face">' + faceSvg("judge") + '</div><div><div class="who" style="font:700 11px/1.2 var(--font-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px">Judge Gavel-9000 rules</div><p class="answer">' + esc(script.final.answer) + '</p>' + (script.final.note ? '<p class="aside">' + esc(script.final.note) + '</p>' : "") + '</div></div><button class="tbtn again" type="button" id="againBtn">Debate something else</button></div>';
+    d.innerHTML = html;
+    feed.appendChild(d);
+    d.querySelector("#againBtn").addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+      input.focus({ preventScroll: true });
+    });
+    roundStat.textContent = "Verdict is in";
+    return d;
+  }
+
+  /* ---------- Playback ---------- */
+  async function wait(ms, id) {
+    var t = 0;
+    while (t < ms) {
+      if (id !== runId || skip) return;
+      if (paused) { await sleep(100); continue; }
+      await sleep(40);
+      t += 40 * speed;
+    }
+  }
+
+  function setPlaying(on) {
+    playing = on;
+    pauseBtn.disabled = !on; skipBtn.disabled = !on;
+    if (!on) { paused = false; pauseBtn.textContent = "Pause"; }
+  }
+
+  function setScript(s) {
+    script = s;
+    motionEl.textContent = s.question;
+    markChip(s.id || "");
+  }
+
+  async function play(animate) {
+    var id = ++runId;
+    skip = false; paused = false; follow = true;
+    feed.innerHTML = "";
+    clearPills(); setSpeaking(null);
+    setPlaying(!!animate);
+    var n = script.rounds.length;
+    for (var i = 0; i < n; i++) {
+      var round = script.rounds[i];
+      addRound(round.title, i, n);
+      for (var j = 0; j < round.lines.length; j++) {
+        if (id !== runId) return;
+        var line = round.lines[j];
+        var live = animate && !skip;
+        if (line.s) {
+          if (live) await wait(450, id);
+          if (id !== runId) return;
+          scrollTo(addStage(line.s));
+          if (live) await wait(700, id);
+          continue;
+        }
+        var typing = null;
+        if (live) {
+          setSpeaking(line.a);
+          typing = addTyping(line.a);
+          scrollTo(typing);
+          await wait(450 + Math.min(line.t.length * 7, 800), id);
+          if (id !== runId) return;
+          typing.remove();
+        }
+        var m = addMsg(line.a, line.t, !(live && !skip));
+        if (live && !skip) {
+          var words = line.t.split(" ");
+          for (var k = 1; k <= words.length; k++) {
+            if (id !== runId) return;
+            if (skip) break;
+            m.txt.textContent = words.slice(0, k).join(" ");
+            scrollTo(m.row);
+            await wait(48, id);
+          }
+          m.txt.textContent = line.t;
+        }
+        if (typeof line.v === "number") { addVoteChip(m.bubble, line.v); setPill(line.a, line.v); }
+        scrollTo(m.row);
+        setSpeaking(null);
+        if (animate && !skip) await wait(300, id);
+      }
+    }
+    if (id !== runId) return;
+    var v = addVerdict();
+    setSpeaking(null);
+    setPlaying(false);
+    if (animate) { follow = true; playing = true; scrollTo(v); playing = false; }
+  }
+
+  function startPlay(animate) {
+    var top = document.querySelector("main");
+    if (animate && top) {
+      var y = top.getBoundingClientRect().top + window.scrollY - 12;
+      window.scrollTo({ top: y, behavior: reduce ? "auto" : "smooth" });
+    }
+    play(animate);
+  }
+
+  /* ---------- Custom topics (written live by Gemini) ---------- */
+  function cancelCustom() { if (ctl) { ctl.abort(); ctl = null; } loadingEl = null; goBtn.disabled = false; }
+
+  function validate(data) {
+    if (!data || typeof data !== "object") return null;
+    if (typeof data.question !== "string" || !Array.isArray(data.options) || data.options.length < 2) return null;
+    if (!Array.isArray(data.rounds) || data.rounds.length < 3) return null;
+    var rounds = [], votes = 0;
+    data.rounds.slice(0, 6).forEach(function (r) {
+      if (!r || !Array.isArray(r.lines)) return;
+      var lines = [];
+      r.lines.slice(0, 16).forEach(function (l) {
+        if (!l) return;
+        if (typeof l.s === "string" && l.s) { lines.push({ s: l.s.slice(0, 220) }); return; }
+        if (typeof l.a === "string" && AG[l.a] && typeof l.t === "string" && l.t) {
+          var o = { a: l.a, t: l.t.slice(0, 320) };
+          if (l.v === 0 || l.v === 1) { o.v = l.v; votes++; }
+          lines.push(o);
+        }
+      });
+      if (lines.length) rounds.push({ title: String(r.title || "Round").slice(0, 40), lines: lines });
+    });
+    if (rounds.length < 3 || votes < 3) return null;
+    if (!data.final || typeof data.final.answer !== "string" || !data.final.answer) return null;
+    return {
+      id: "", question: data.question.slice(0, 160),
+      options: [String(data.options[0]).slice(0, 80), String(data.options[1]).slice(0, 80)],
+      rounds: rounds,
+      final: { answer: data.final.answer.slice(0, 600), note: typeof data.final.note === "string" ? data.final.note.slice(0, 200) : "" }
+    };
+  }
+
+  function errCopy(code) {
+    switch (code) {
+      case "missing_api_key": return "Gemini is not configured yet. Add GEMINI_API_KEY to your Vercel environment variables.";
+      case "rate_limited": return "Too many requests right now. Wait a minute, then start the debate again.";
+      case "refused": return "Gemini passed on that topic. Try a different one.";
+      case "invalid_json": return "The writers' room sent back a messy script. Press Start debate to try again.";
+      default: return "The writers' room had a problem. Press Start debate to try again.";
+    }
+  }
+
+  async function runCustom(topic) {
+    runId++; setPlaying(false); setSpeaking(null); clearPills();
+    cancelCustom();
+    ctl = new AbortController();
+    var mine = ctl;
+    goBtn.disabled = true;
+    markChip("");
+    motionEl.textContent = topic;
+    roundStat.textContent = "Agents are in the green room";
+    feed.innerHTML = "";
+    loadingEl = document.createElement("div");
+    loadingEl.className = "loading";
+    loadingEl.innerHTML = '<p>The agents are arguing about who speaks first…</p><span class="dots a-judge"><i></i><i></i><i></i></span>';
+    var stop = document.createElement("button");
+    stop.type = "button"; stop.className = "tbtn"; stop.textContent = "Cancel";
+    stop.addEventListener("click", function () { cancelCustom(); feed.innerHTML = ""; setNote("Cancelled. Pick a topic when you're ready."); roundStat.textContent = "Studio ready"; });
+    loadingEl.appendChild(stop);
+    feed.appendChild(loadingEl);
+    setNote("Writing the script. This can take up to a minute.");
+    try {
+      var response = await fetch("/api/debate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topic: topic }),
+        signal: mine.signal
+      });
+      var payload = await response.json().catch(function () { return {}; });
+      if (!response.ok) throw { code: payload.error || "request_failed" };
+      var data = payload.script || payload;
+      if (mine !== ctl) return;
+      var s = validate(data);
+      if (!s) throw { code: "invalid_json" };
+      ctl = null; goBtn.disabled = false;
+      setNote("Live script written by Gemini. Same debate rules as the presets.");
+      setScript(s);
+      startPlay(true);
+    } catch (e) {
+      if (mine !== ctl) return;
+      ctl = null; goBtn.disabled = false;
+      if (e && e.code === "cancelled") return;
+      feed.innerHTML = "";
+      roundStat.textContent = "Studio ready";
+      setNote(errCopy(e && e.code), true);
+      if (script) { setScript(script); play(false); }
+    }
+  }
+
+  /* ---------- Wire up ---------- */
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var t = input.value.trim();
+    if (!t) { setNote("Type a topic first, or pick one of the presets.", true); input.focus(); return; }
+    runCustom(t);
+  });
+  replayBtn.addEventListener("click", function () { if (script) { cancelCustom(); startPlay(true); } });
+  pauseBtn.addEventListener("click", function () {
+    paused = !paused; pauseBtn.textContent = paused ? "Resume" : "Pause";
+  });
+  skipBtn.addEventListener("click", function () { skip = true; });
+  speedBtn.addEventListener("click", function () {
+    speed = speed === 1 ? 2 : 1; speedBtn.textContent = "Speed " + speed + "x";
+  });
+  window.addEventListener("wheel", function (e) { if (e.deltaY < 0) follow = false; }, { passive: true });
+  window.addEventListener("touchmove", function () { follow = false; }, { passive: true });
+
+  buildRoster();
+  buildChips();
+  setScript(PRESETS[0]);
+  play(false);
+})();
+</script>
+
+</body></html>
