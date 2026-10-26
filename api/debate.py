@@ -39,6 +39,15 @@ def json_response(handler, status, payload):
     handler.wfile.write(body)
 
 
+def parse_model_json(gemini_data):
+    text = gemini_data["candidates"][0]["content"]["parts"][0]["text"].strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text
+        if text.endswith("```"):
+            text = text[:-3].rstrip()
+    return json.loads(text)
+
+
 class handler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         json_response(self, 204, {})
@@ -75,8 +84,7 @@ class handler(BaseHTTPRequestHandler):
             request = Request(url, data=request_body, headers={"Content-Type": "application/json"})
             with urlopen(request, timeout=55) as response:
                 gemini_data = json.loads(response.read())
-            text = gemini_data["candidates"][0]["content"]["parts"][0]["text"]
-            script = json.loads(text)
+            script = parse_model_json(gemini_data)
         except HTTPError as error:
             code = "rate_limited" if error.code == 429 else "gemini_error"
             json_response(self, 429 if error.code == 429 else 502, {"error": code})
